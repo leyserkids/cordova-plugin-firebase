@@ -1,5 +1,9 @@
 var exec = require('cordova/exec');
 
+exports.crash = function () {
+    exec(null, null, "FirebasePlugin", "crash", []);
+}
+
 exports.getVerificationID = function (number, success, error) {
   exec(success, error, "FirebasePlugin", "getVerificationID", [number]);
 };

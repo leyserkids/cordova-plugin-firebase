@@ -4,6 +4,9 @@ exports.getVerificationID = function (number, success, error) {
   }
 };
 
+exports.crash = function () {
+}
+
 exports.getInstanceId = function (success, error) {
   if (typeof success === 'function') {
     success();

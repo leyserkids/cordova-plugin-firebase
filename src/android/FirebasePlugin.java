@@ -201,6 +201,9 @@ public class FirebasePlugin extends CordovaPlugin {
         } else if (action.equals("clearAllNotifications")) {
             this.clearAllNotifications(callbackContext);
             return true;
+        } else  if (action.equals("crash")) {
+            this.crash(callbackContext);
+            return true;
         }
 
         return false;
@@ -318,6 +321,18 @@ public class FirebasePlugin extends CordovaPlugin {
             data.putBoolean("tap", true);
             FirebasePlugin.sendNotification(data, this.cordova.getActivity().getApplicationContext());
         }
+    }
+
+    private void crash(final CallbackContext callbackContext) {
+        cordova.getThreadPool().execute(new Runnable() {
+            public void run() {
+                try {
+                    Crashlytics.getInstance().crash();
+                } catch (Exception e) {
+                    Crashlytics.logException(e);
+                }
+            }
+        });
     }
 
     // DEPRECTED - alias of getToken
@@ -747,7 +762,7 @@ public class FirebasePlugin extends CordovaPlugin {
                             try {
                                 String verificationId = null;
                                 String code = null;
-								
+
                                 Field[] fields = credential.getClass().getDeclaredFields();
                                 for (Field field : fields) {
                                     Class type = field.getType();
@@ -814,7 +829,7 @@ public class FirebasePlugin extends CordovaPlugin {
                             callbackContext.sendPluginResult(pluginresult);
                         }
                     };
-	
+
                     PhoneAuthProvider.getInstance().verifyPhoneNumber(number, // Phone number to verify
                             timeOutDuration, // Timeout duration
                             TimeUnit.SECONDS, // Unit of timeout
@@ -827,7 +842,7 @@ public class FirebasePlugin extends CordovaPlugin {
             }
         });
     }
-	
+
     private static String getPrivateField(PhoneAuthCredential credential, Field field) {
         try {
             field.setAccessible(true);

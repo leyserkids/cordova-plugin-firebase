@@ -1,4 +1,5 @@
 .idea/
+cordova-plugin-firebase.iml
 .DS_Store
 *.log
 .build-ios

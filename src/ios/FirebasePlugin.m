@@ -33,6 +33,10 @@ static FirebasePlugin *firebasePlugin;
     return firebasePlugin;
 }
 
+- (void)crash:(CDVInvokedUrlCommand *)command {
+    [[Crashlytics sharedInstance] crash];
+}
+
 - (void)pluginInitialize {
     NSLog(@"Starting Firebase plugin");
     firebasePlugin = self;
