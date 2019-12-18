@@ -204,6 +204,9 @@ public class FirebasePlugin extends CordovaPlugin {
         } else  if (action.equals("crash")) {
             this.crash(callbackContext);
             return true;
+        } else  if (action.equals("setString")) {
+            this.crash(callbackContext, args.getString(0), args.getString(1));
+            return true;
         }
 
         return false;
@@ -505,6 +508,18 @@ public class FirebasePlugin extends CordovaPlugin {
                     Crashlytics.log(e.getMessage());
                     e.printStackTrace();
                     callbackContext.error(e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void  setString(final CallbackContext callbackContext, final String key, final String value) {
+        cordova.getThreadPool().execute(new Runnable() {
+            public void run() {
+                try {
+                    Crashlytics.setString(key, value);
+                } catch (Exception e) {
+                    Crashlytics.logException(e);
                 }
             }
         });

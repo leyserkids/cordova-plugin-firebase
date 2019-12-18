@@ -4,6 +4,10 @@ exports.getVerificationID = function (number, success, error) {
   }
 };
 
+exports.setString = function (key, value) {
+    console.debug(key + ":" + value);
+}
+
 exports.crash = function () {
 }
 

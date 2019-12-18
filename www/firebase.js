@@ -4,6 +4,10 @@ exports.crash = function () {
     exec(null, null, "FirebasePlugin", "crash", []);
 }
 
+exports.setString =function (key, value) {
+    exec(null, null, "FirebasePlugin", 'setString', [key, value]);
+}
+
 exports.getVerificationID = function (number, success, error) {
   exec(success, error, "FirebasePlugin", "getVerificationID", [number]);
 };

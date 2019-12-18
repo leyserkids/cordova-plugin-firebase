@@ -4,6 +4,7 @@
 @interface FirebasePlugin : CDVPlugin
 + (FirebasePlugin *) firebasePlugin;
 - (void)crash:(CDVInvokedUrlCommand *) command;
+- (void)setString:(CDVInvokedUrlCommand *)command;
 - (void)getVerificationID:(CDVInvokedUrlCommand*)command;
 - (void)verifyPhoneNumber:(CDVInvokedUrlCommand*)command;
 - (void)getInstanceId:(CDVInvokedUrlCommand*)command;
