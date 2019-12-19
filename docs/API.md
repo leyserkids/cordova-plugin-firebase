@@ -2,6 +2,18 @@
 
 The list of available methods for this plugin is described below.
 
+## crash
+Generate a forced crash for test.
+```$xslt
+window.FirebasePlugin.crash();
+```
+
+## setString
+Set extra key/value string value. Will only be logged in the event of a crash.
+```$xslt
+window.FirebasePlugin.setString(key, value)
+ps : value.lenth < 100
+```
 ## getToken
 
 Get the device token (id):
