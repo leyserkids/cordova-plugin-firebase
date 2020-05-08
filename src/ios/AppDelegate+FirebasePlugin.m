@@ -180,7 +180,7 @@
     // Print full message.
     NSLog(@"%@", mutableUserInfo);
 
-    completionHandler(UNNotificationPresentationOptionAlert);
+    completionHandler(UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionSound | UNNotificationPresentationOptionBadge);
     [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
 }
 
