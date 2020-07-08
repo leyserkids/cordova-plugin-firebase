@@ -89,15 +89,7 @@ xmlns:android="http://schemas.android.com/apk/res/android">
 		<header-file src="src/ios/FirebasePlugin.h" />
 		<source-file src="src/ios/FirebasePlugin.m" />
 
-		<podspec>
-			<config>
-				<source url="https://cdn.cocoapods.org/"/>
-			</config>
-			<pods use-frameworks="true">
-				<pod name="Firebase/Messaging" spec="6.27.0"/>
-				<pod name="Firebase/Crashlytics" spec="6.27.0"/>
-			</pods>
-		</podspec>
+		<framework src="Firebase/Messaging" type="podspec" spec="6.27.0" />
 	</platform>
 
 	<platform name="browser">
