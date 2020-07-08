@@ -87,8 +87,6 @@ xmlns:android="http://schemas.android.com/apk/res/android">
 		<header-file src="src/ios/FirebasePlugin.h" />
 		<source-file src="src/ios/FirebasePlugin.m" />
 
-		<header-file src="src/ios/Firebase/Firebase.h" />
-
 		<podspec>
 			<config>
 				<source url="https://cdn.cocoapods.org/"/>
