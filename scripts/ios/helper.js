@@ -138,5 +138,44 @@ module.exports = {
 
     // Finally, write the .pbxproj back out to disk.
     fs.writeFileSync(xcodeProjectPath, xcodeProject.writeSync());
-  }
+  },
+
+  ensureRunpathSearchPath: function(context, xcodeProjectPath) {
+
+    function addRunpathSearchBuildProperty(proj, build) {
+        let LD_RUNPATH_SEARCH_PATHS = proj.getBuildProperty("LD_RUNPATH_SEARCH_PATHS", build);
+
+        if (!Array.isArray(LD_RUNPATH_SEARCH_PATHS)) {
+            LD_RUNPATH_SEARCH_PATHS = [LD_RUNPATH_SEARCH_PATHS];
+        }
+
+        LD_RUNPATH_SEARCH_PATHS.forEach(LD_RUNPATH_SEARCH_PATH => {
+            if (!LD_RUNPATH_SEARCH_PATH) {
+                proj.addBuildProperty("LD_RUNPATH_SEARCH_PATHS", "\"$(inherited) @executable_path/Frameworks\"", build);
+            }
+            if (LD_RUNPATH_SEARCH_PATH.indexOf("@executable_path/Frameworks") == -1) {
+                var newValue = LD_RUNPATH_SEARCH_PATH.substr(0, LD_RUNPATH_SEARCH_PATH.length - 1);
+                newValue += ' @executable_path/Frameworks\"';
+                proj.updateBuildProperty("LD_RUNPATH_SEARCH_PATHS", newValue, build);
+            }
+            if (LD_RUNPATH_SEARCH_PATH.indexOf("$(inherited)") == -1) {
+                var newValue = LD_RUNPATH_SEARCH_PATH.substr(0, LD_RUNPATH_SEARCH_PATH.length - 1);
+                newValue += ' $(inherited)\"';
+                proj.updateBuildProperty("LD_RUNPATH_SEARCH_PATHS", newValue, build);
+            }
+        });
+    }
+
+    // Read and parse the XCode project (.pxbproj) from disk.
+    // File format information: http://www.monobjc.net/xcode-project-file-format.html
+    var xcodeProject = xcode.project(xcodeProjectPath);
+    xcodeProject.parseSync();
+
+    // Add search paths build property
+    addRunpathSearchBuildProperty(xcodeProject, "Debug");
+    addRunpathSearchBuildProperty(xcodeProject, "Release");
+
+    // Finally, write the .pbxproj back out to disk.
+    fs.writeFileSync(path.resolve(xcodeProjectPath), xcodeProject.writeSync());
+  },
 };
