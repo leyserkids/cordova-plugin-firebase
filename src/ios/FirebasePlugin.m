@@ -36,9 +36,9 @@ static FirebasePlugin *firebasePlugin;
     @try {
         [[FIRInstanceID instanceID] instanceIDWithHandler:^(FIRInstanceIDResult * _Nullable result, NSError * _Nullable error) {
             if (error == nil && result.token != nil) {
-                [self sendToken:result.token];
+                [self sendPluginSuccessWithMessage:result.token command:command];
             } else {
-                [self handleStringResultWithPotentialError:error command:command result:result.token];
+                [self sendPluginErrorWithError:error command:command];
             }
         }];
     } @catch (NSException *exception) {
@@ -432,48 +432,17 @@ static FirebasePlugin *firebasePlugin;
 }
 
 #pragma mark - utils
- - (void) sendPluginSuccess:(CDVInvokedUrlCommand*)command{
-     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+- (void) sendPluginSuccessWithMessage:(NSString*)message command:(CDVInvokedUrlCommand*)command {
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:message];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
  }
 
- - (void) sendPluginError:(CDVInvokedUrlCommand*)command{
-     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR] callbackId:command.callbackId];
+ - (void) sendPluginErrorWithError:(NSError*)error command:(CDVInvokedUrlCommand*)command {
+    [self _logError:[NSString stringWithFormat:@"Error: %@", error.description]];
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
+    [self.commandDelegate sendPluginResult: pluginResult callbackId:command.callbackId];
  }
 
- - (void) sendPluginErrorWithMessage: (NSString*) errorMessage :(CDVInvokedUrlCommand*)command
- {
-     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:errorMessage];
-     [self _logError:errorMessage];
-     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
- }
-
- - (void) sendPluginErrorWithError:(NSError*)error command:(CDVInvokedUrlCommand*)command{
-     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description] callbackId:command.callbackId];
- }
-
- - (void) handleEmptyResultWithPotentialError:(NSError*) error command:(CDVInvokedUrlCommand*)command {
-      if (error) {
-          [self sendPluginErrorWithError:error command:command];
-      } else {
-          [self sendPluginSuccess:command];
-      }
- }
-
- - (void) handleStringResultWithPotentialError:(NSError*) error command:(CDVInvokedUrlCommand*)command result:(NSString*)result {
-      if (error) {
-          [self sendPluginErrorWithError:error command:command];
-      } else {
-          [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:result] callbackId:command.callbackId];
-      }
- }
-
- - (void) handleBoolResultWithPotentialError:(NSError*) error command:(CDVInvokedUrlCommand*)command result:(BOOL)result {
-      if (error) {
-          [self sendPluginErrorWithError:error command:command];
-      } else {
-          [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:result] callbackId:command.callbackId];
-      }
- }
 - (void) handlePluginExceptionWithContext: (NSException*) exception :(CDVInvokedUrlCommand*)command {
     [self handlePluginExceptionWithoutContext:exception];
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:exception.reason];
