@@ -52,7 +52,7 @@ module.exports = function (context) {
     utilities.copyKey(PLATFORM.IOS);
 
     var helper = require("./ios/helper");
-    var xcodeProjectPath = helper.getXcodeProjectPath();
+    var xcodeProjectPath = helper.getXcodeProjectPath(context);
     helper.ensureRunpathSearchPath(context, xcodeProjectPath);
   }
   if (platforms.indexOf('android') !== -1 && utilities.directoryExists(ANDROID_DIR)) {
