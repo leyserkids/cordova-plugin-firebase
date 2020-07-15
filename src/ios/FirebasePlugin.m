@@ -32,7 +32,7 @@ static FirebasePlugin *firebasePlugin;
     firebasePlugin = self;
 }
 
-- (void)getInstanceId:(CDVInvokedUrlCommand *)command {
+- (void) getInstanceId:(CDVInvokedUrlCommand *)command {
     @try {
         [[FIRInstanceID instanceID] instanceIDWithHandler:^(FIRInstanceIDResult * _Nullable result, NSError * _Nullable error) {
             if (error == nil && result.token != nil) {
@@ -46,23 +46,58 @@ static FirebasePlugin *firebasePlugin;
     }
 }
 
-- (void)hasPermission:(CDVInvokedUrlCommand *)command {
-    BOOL enabled = NO;
-    UIApplication *application = [UIApplication sharedApplication];
-
-    if ([[UIApplication sharedApplication] respondsToSelector:@selector(registerUserNotificationSettings:)]) {
-        enabled = application.currentUserNotificationSettings.types != UIUserNotificationTypeNone;
-    } else {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-        enabled = application.enabledRemoteNotificationTypes != UIRemoteNotificationTypeNone;
-#pragma GCC diagnostic pop
+- (void) hasPermission:(CDVInvokedUrlCommand *)command {
+    @try {
+        [self _hasPermissionWithCallback:^(NSDictionary *result) {
+            [self sendPluginSuccessWithDictionary:result command:command];
+        }];
+    } @catch (NSException *exception) {
+        [self handlePluginExceptionWithContext:exception :command];
     }
+}
 
-    NSMutableDictionary* message = [NSMutableDictionary dictionaryWithCapacity:1];
-    [message setObject:[NSNumber numberWithBool:enabled] forKey:@"isEnabled"];
-    CDVPluginResult *commandResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:message];
-    [self.commandDelegate sendPluginResult:commandResult callbackId:command.callbackId];
+- (void) _hasPermissionWithCallback:(void (^)(NSDictionary *result))completeBlock {
+    if (![self hasSupportedVersion]) {
+        return;
+    }
+    @try {
+        [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings * _Nonnull settings) {
+            @try {
+                NSMutableDictionary* ret = [[NSMutableDictionary alloc] init];
+                ret[@"alertSetting"] = @((bool)(settings.alertSetting == UNNotificationSettingEnabled));
+                ret[@"soundSetting"] = @((bool)(settings.soundSetting == UNNotificationSettingEnabled));
+                ret[@"badgeSetting"] = @((bool)(settings.badgeSetting == UNNotificationSettingEnabled));
+                
+                if (settings.authorizationStatus == UNAuthorizationStatusNotDetermined) {
+                    ret[@"authorizationStatus"] = @"NotDetermined";
+                }
+                if (settings.authorizationStatus == UNAuthorizationStatusDenied) {
+                    ret[@"authorizationStatus"] = @"Denied";
+                }
+                if (settings.authorizationStatus == UNAuthorizationStatusAuthorized) {
+                    ret[@"authorizationStatus"] = @"Authorized";
+                }
+                
+                if (@available(iOS 12.0, *)) {
+                    if (settings.authorizationStatus == UNAuthorizationStatusProvisional) {
+                        ret[@"authorizationStatus"] = @"Provisional";
+                    }
+                }
+                
+                [self isRegisterForRemoteNotification:^(BOOL result) {
+                    ret[@"isRegisterForRemoteNotification"] = @(result);
+                }];
+
+                if (completeBlock) {
+                    completeBlock(ret);
+                }
+            } @catch (NSException *exception) {
+                [self handlePluginExceptionWithoutContext:exception];
+            }
+        }];
+    } @catch (NSException *exception) {
+        [self handlePluginExceptionWithoutContext:exception];
+    }
 }
 
 - (void)grantPermission:(CDVInvokedUrlCommand *)command {
@@ -116,6 +151,22 @@ static FirebasePlugin *firebasePlugin;
 #endif
 
     return;
+}
+
+// Apple docs recommend that registerForRemoteNotification is always called on app start regardless of current status
+- (void) registerForRemoteNotification {
+    [self runOnMainThread:^{
+        [[UIApplication sharedApplication] registerForRemoteNotifications];
+    }];
+}
+
+- (void) isRegisterForRemoteNotification: (void (^)(BOOL result))completeBlock {
+    [self runOnMainThread:^{
+        BOOL isRegistered = [[UIApplication sharedApplication] isRegisteredForRemoteNotifications];
+        if(completeBlock){
+            completeBlock(isRegistered);
+        }
+    }];
 }
 
 - (void)setBadgeNumber:(CDVInvokedUrlCommand *)command {
@@ -432,16 +483,39 @@ static FirebasePlugin *firebasePlugin;
 }
 
 #pragma mark - utils
+- (void) runOnMainThread:(void (^)(void))completeBlock {
+    if (![NSThread isMainThread]) {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            @try {
+                completeBlock();
+            } @catch (NSException *exception) {
+                [self handlePluginExceptionWithoutContext:exception];
+            }
+        });
+    } else {
+        @try {
+            completeBlock();
+        } @catch (NSException *exception) {
+            [self handlePluginExceptionWithoutContext:exception];
+        }
+    }
+}
+
 - (void) sendPluginSuccessWithMessage:(NSString*)message command:(CDVInvokedUrlCommand*)command {
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:message];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
- }
+}
 
- - (void) sendPluginErrorWithError:(NSError*)error command:(CDVInvokedUrlCommand*)command {
+- (void) sendPluginSuccessWithDictionary:(NSDictionary*)result command:(CDVInvokedUrlCommand*)command {
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (void) sendPluginErrorWithError:(NSError*)error command:(CDVInvokedUrlCommand*)command {
     [self _logError:[NSString stringWithFormat:@"Error: %@", error.description]];
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
     [self.commandDelegate sendPluginResult: pluginResult callbackId:command.callbackId];
- }
+}
 
 - (void) handlePluginExceptionWithContext: (NSException*) exception :(CDVInvokedUrlCommand*)command {
     [self handlePluginExceptionWithoutContext:exception];
@@ -453,30 +527,39 @@ static FirebasePlugin *firebasePlugin;
     [self _logError:[NSString stringWithFormat:@"EXCEPTION: %@", exception.reason]];
 }
 
-- (void)executeGlobalJavascript: (NSString*)jsString
+- (BOOL) hasSupportedVersion {
+    if (@available(iOS 10.0, *)) {
+        return YES;
+    } else {
+        [self _logError:@"Unsupported. Minimum supported version requirement not met iOS 10"];
+        return NO;
+    }
+}
+
+- (void) executeGlobalJavascript: (NSString*)jsString
 {
     [self.commandDelegate evalJs:jsString];
 }
 
-- (void)_logError: (NSString*)msg {
+- (void) _logError: (NSString*)msg {
     NSLog(@"%@ ERROR: %@", LOG_TAG, msg);
     NSString* jsString = [NSString stringWithFormat:@"console.error(\"%@: %@\")", LOG_TAG, [self escapeJavascriptString:msg]];
     [self executeGlobalJavascript:jsString];
 }
 
-- (void)_logInfo: (NSString*)msg {
+- (void) _logInfo: (NSString*)msg {
     NSLog(@"%@ INFO: %@", LOG_TAG, msg);
     NSString* jsString = [NSString stringWithFormat:@"console.info(\"%@: %@\")", LOG_TAG, [self escapeJavascriptString:msg]];
     [self executeGlobalJavascript:jsString];
 }
 
-- (void)_logMessage: (NSString*)msg {
+- (void) _logMessage: (NSString*)msg {
     NSLog(@"%@ LOG: %@", LOG_TAG, msg);
     NSString* jsString = [NSString stringWithFormat:@"console.log(\"%@: %@\")", LOG_TAG, [self escapeJavascriptString:msg]];
     [self executeGlobalJavascript:jsString];
 }
 
-- (NSString*)escapeJavascriptString: (NSString*)str {
+- (NSString*) escapeJavascriptString: (NSString*)str {
     NSString* result = [str stringByReplacingOccurrencesOfString: @"\\\"" withString: @"\""];
     result = [result stringByReplacingOccurrencesOfString: @"\"" withString: @"\\\""];
     result = [result stringByReplacingOccurrencesOfString: @"\n" withString: @"\\\n"];
