@@ -101,56 +101,35 @@ static FirebasePlugin *firebasePlugin;
 }
 
 - (void)grantPermission:(CDVInvokedUrlCommand *)command {
-    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
-        if ([[UIApplication sharedApplication]respondsToSelector:@selector(registerUserNotificationSettings:)]) {
-            UIUserNotificationType notificationTypes =
-            (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
-            UIUserNotificationSettings *settings = [UIUserNotificationSettings settingsForTypes:notificationTypes categories:nil];
-            [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
-            [[UIApplication sharedApplication] registerForRemoteNotifications];
-        } else {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-            [[UIApplication sharedApplication] registerForRemoteNotificationTypes:(UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeSound)];
-#pragma GCC diagnostic pop
-        }
-
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-
+    if (![self hasSupportedVersion]) {
         return;
     }
 
+    @try {
+        // TODO
+        [UNUserNotificationCenter currentNotificationCenter].delegate = (id<UNUserNotificationCenterDelegate> _Nullable) self;
+        UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert|UNAuthorizationOptionSound|UNAuthorizationOptionBadge;
 
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-    UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert|UNAuthorizationOptionSound|UNAuthorizationOptionBadge;
-    [[UNUserNotificationCenter currentNotificationCenter]
-        requestAuthorizationWithOptions:authOptions
-                      completionHandler:^(BOOL granted, NSError * _Nullable error) {
-
-            if (![NSThread isMainThread]) {
-                dispatch_sync(dispatch_get_main_queue(), ^{
-                    [[FIRMessaging messaging] setDelegate:self];
-                    [[UIApplication sharedApplication] registerForRemoteNotifications];
-
-                    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: granted ? CDVCommandStatus_OK : CDVCommandStatus_ERROR];
-                    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-                });
-            } else {
-                [[FIRMessaging messaging] setDelegate:self];
-                [[UIApplication sharedApplication] registerForRemoteNotifications];
-                CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:authOptions completionHandler:^(BOOL granted, NSError * _Nullable error) {
+            @try {
+                NSLog(@"requestAuthorizationWithOptions: granted=%@", granted ? @"YES" : @"NO");
+                CDVPluginResult* pluginResult;
+                if (error == nil) {
+                    if(granted){
+                        [self registerForRemoteNotification];
+                    }
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:granted];
+                }else{
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
+                }
                 [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            } @catch (NSException *exception) {
+                [self handlePluginExceptionWithContext:exception :command];
             }
-        }
-    ];
-#else
-    [[UIApplication sharedApplication] registerForRemoteNotifications];
-    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-#endif
-
-    return;
+        }];
+    } @catch (NSException *exception) {
+        [self handlePluginExceptionWithContext:exception :command];
+    }
 }
 
 // Apple docs recommend that registerForRemoteNotification is always called on app start regardless of current status
