@@ -152,9 +152,10 @@
 //    [FirebasePlugin.firebasePlugin sendNotification:remoteMessage.appData];
 //}
 //
-//- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
-//  NSLog(@"Unable to register for remote notifications: %@", error);
-//}
+
+- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
+    [FirebasePlugin.firebasePlugin _logError:[NSString stringWithFormat:@"didFailToRegisterForRemoteNotificationsWithError: %@", error.description]];
+}
 
 // [END ios_10_data_message]
 #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
