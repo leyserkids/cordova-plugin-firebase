@@ -90,8 +90,6 @@ xmlns:android="http://schemas.android.com/apk/res/android">
 		<header-file src="src/ios/FirebasePlugin.h" />
 		<source-file src="src/ios/FirebasePlugin.m" />
 
-		<framework src="Firebase/Analytics" type="podspec" spec="6.31.0" />
-		<framework src="Firebase/Crashlytics" type="podspec" spec="6.31.0" />
 		<framework src="Firebase/Messaging" type="podspec" spec="6.31.0" />
 	</platform>
 
