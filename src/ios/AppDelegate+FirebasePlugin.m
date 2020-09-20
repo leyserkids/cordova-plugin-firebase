@@ -13,8 +13,6 @@
 
 @implementation AppDelegate (FirebasePlugin)
 
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-
 - (void)setDelegate:(id)delegate {
     objc_setAssociatedObject(self, kDelegateKey, delegate, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
@@ -22,8 +20,6 @@
 - (id)delegate {
     return objc_getAssociatedObject(self, kDelegateKey);
 }
-
-#endif
 
 + (void)load {
     Method original = class_getInstanceMethod(self, @selector(application:didFinishLaunchingWithOptions:));
@@ -47,7 +43,7 @@
     
     // if file is successfully found, use it
     if(filePath){
-        NSLog(@"GoogleService-Info.plist found, setup: [FIRApp configureWithOptions]");
+        [FirebasePlugin.firebasePlugin _logMessage:@"GoogleService-Info.plist found, setup: [FIRApp configureWithOptions]"];
         // create firebase configure options passing .plist as content
         FIROptions *options = [[FIROptions alloc] initWithContentsOfFile:filePath];
         
@@ -57,17 +53,15 @@
     
     // no .plist found, try default App
     if (![FIRApp defaultApp] && !filePath) {
-        NSLog(@"GoogleService-Info.plist NOT FOUND, setup: [FIRApp defaultApp]");
+        [FirebasePlugin.firebasePlugin _logError:@"GoogleService-Info.plist NOT FOUND, setup: [FIRApp defaultApp]"];
         [FIRApp configure];
     }
 
-    // [START set_messaging_delegate]
+
     [FIRMessaging messaging].delegate = self;
-    // [END set_messaging_delegate]
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
+
     self.delegate = [UNUserNotificationCenter currentNotificationCenter].delegate;
     [UNUserNotificationCenter currentNotificationCenter].delegate = self;
-#endif
 
     //self.applicationInBackground = @(YES);
 
@@ -83,30 +77,6 @@
     }
 }
 
-
-//- (void)applicationDidBecomeActive:(UIApplication *)application {
-//    [self connectToFcm];
-//    self.applicationInBackground = @(NO);
-//    }
-//
-//- (void)applicationDidEnterBackground:(UIApplication *)application {
-//    [[FIRMessaging messaging] disconnect];
-//    self.applicationInBackground = @(YES);
-//    NSLog(@"Disconnected from FCM");
-//}
-//
-
-//- (void)connectToFcm {
-//    [[FIRMessaging messaging] connectWithCompletion:^(NSError * _Nullable error) {
-//        if (error != nil) {
-//            NSLog(@"Unable to connect to FCM. %@", error);
-//        } else {
-//            NSLog(@"Connected to FCM.");
-//            NSString *refreshedToken = [[FIRInstanceID instanceID] token];
-//            NSLog(@"InstanceID token: %@", refreshedToken);
-//        }
-//    }];
-//}
 
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
     //[FIRMessaging messaging].APNSToken = deviceToken;
@@ -141,24 +111,10 @@
     }
 }
 
-//// [START ios_10_data_message]
-//// Receive data messages on iOS 10+ directly from FCM (bypassing APNs) when the app is in the foreground.
-//// To enable direct data messages, you can set [Messaging messaging].shouldEstablishDirectChannel to YES.
-//- (void)messaging:(FIRMessaging *)messaging didReceiveMessage:(FIRMessagingRemoteMessage *)remoteMessage {
-//    NSLog(@"Received data message: %@", remoteMessage.appData);
-//
-//    // This will allow us to handle FCM data-only push messages even if the permission for push
-//    // notifications is yet missing. This will only work when the app is in the foreground.
-//    [FirebasePlugin.firebasePlugin sendNotification:remoteMessage.appData];
-//}
-//
-
 - (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
     [FirebasePlugin.firebasePlugin _logError:[NSString stringWithFormat:@"didFailToRegisterForRemoteNotificationsWithError: %@", error.description]];
 }
 
-// [END ios_10_data_message]
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
@@ -209,6 +165,5 @@
 //    // Print full message
 //    NSLog(@"%@", [remoteMessage appData]);
 //}
-#endif
 
 @end

@@ -22,7 +22,7 @@ static FirebasePlugin *firebasePlugin;
 }
 
 - (void)pluginInitialize {
-    NSLog(@"Starting Firebase plugin");
+    [self _logMessage:@"Starting Firebase plugin"];
     firebasePlugin = self;
 }
 
@@ -104,7 +104,7 @@ static FirebasePlugin *firebasePlugin;
 
         [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:authOptions completionHandler:^(BOOL granted, NSError * _Nullable error) {
             @try {
-                NSLog(@"requestAuthorizationWithOptions: granted=%@", granted ? @"YES" : @"NO");
+                [self _logMessage:[NSString stringWithFormat:@"requestAuthorizationWithOptions: granted=%@", granted ? @"YES" : @"NO"]];
                 CDVPluginResult* pluginResult;
                 if (error == nil) {
                     if(granted){
