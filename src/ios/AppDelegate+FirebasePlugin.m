@@ -60,9 +60,10 @@
 
     [FIRMessaging messaging].delegate = self;
 
-    self.delegate = [UNUserNotificationCenter currentNotificationCenter].delegate;
-    [UNUserNotificationCenter currentNotificationCenter].delegate = self;
-
+    if (@available(iOS 10.0, *)) {
+        self.delegate = [UNUserNotificationCenter currentNotificationCenter].delegate;
+        [UNUserNotificationCenter currentNotificationCenter].delegate = self;
+    }
     //self.applicationInBackground = @(YES);
 
     return YES;
@@ -115,6 +116,7 @@
     [FirebasePlugin.firebasePlugin _logError:[NSString stringWithFormat:@"didFailToRegisterForRemoteNotificationsWithError: %@", error.description]];
 }
 
+#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
@@ -159,6 +161,7 @@
 
     completionHandler();
 }
+#endif
 
 //// Receive data message on iOS 10 devices.
 //- (void)applicationReceivedRemoteMessage:(FIRMessagingRemoteMessage *)remoteMessage {

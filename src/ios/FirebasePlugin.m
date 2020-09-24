@@ -51,76 +51,81 @@ static FirebasePlugin *firebasePlugin;
 }
 
 - (void) _hasPermissionWithCallback:(void (^)(NSDictionary *result))completeBlock {
-    if (![self hasSupportedVersion]) {
-        return;
-    }
-    @try {
-        [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings * _Nonnull settings) {
-            @try {
-                NSMutableDictionary* ret = [[NSMutableDictionary alloc] init];
-                ret[@"alertSetting"] = @((bool)(settings.alertSetting == UNNotificationSettingEnabled));
-                ret[@"soundSetting"] = @((bool)(settings.soundSetting == UNNotificationSettingEnabled));
-                ret[@"badgeSetting"] = @((bool)(settings.badgeSetting == UNNotificationSettingEnabled));
-                
-                if (settings.authorizationStatus == UNAuthorizationStatusNotDetermined) {
-                    ret[@"authorizationStatus"] = @"NotDetermined";
-                }
-                if (settings.authorizationStatus == UNAuthorizationStatusDenied) {
-                    ret[@"authorizationStatus"] = @"Denied";
-                }
-                if (settings.authorizationStatus == UNAuthorizationStatusAuthorized) {
-                    ret[@"authorizationStatus"] = @"Authorized";
-                }
-                
-                if (@available(iOS 12.0, *)) {
-                    if (settings.authorizationStatus == UNAuthorizationStatusProvisional) {
-                        ret[@"authorizationStatus"] = @"Provisional";
+    if (@available(iOS 10.0, *)) {
+        @try {
+            [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings * _Nonnull settings) {
+                @try {
+                    NSMutableDictionary* ret = [[NSMutableDictionary alloc] init];
+                    ret[@"isSupported"] = @((bool)true);
+                    ret[@"alertSetting"] = @((bool)(settings.alertSetting == UNNotificationSettingEnabled));
+                    ret[@"soundSetting"] = @((bool)(settings.soundSetting == UNNotificationSettingEnabled));
+                    ret[@"badgeSetting"] = @((bool)(settings.badgeSetting == UNNotificationSettingEnabled));
+                    
+                    if (settings.authorizationStatus == UNAuthorizationStatusNotDetermined) {
+                        ret[@"authorizationStatus"] = @"NotDetermined";
                     }
-                }
-                
-                [self isRegisterForRemoteNotification:^(BOOL result) {
-                    ret[@"isRegisterForRemoteNotification"] = @(result);
-                }];
+                    if (settings.authorizationStatus == UNAuthorizationStatusDenied) {
+                        ret[@"authorizationStatus"] = @"Denied";
+                    }
+                    if (settings.authorizationStatus == UNAuthorizationStatusAuthorized) {
+                        ret[@"authorizationStatus"] = @"Authorized";
+                    }
+                    
+                    if (@available(iOS 12.0, *)) {
+                        if (settings.authorizationStatus == UNAuthorizationStatusProvisional) {
+                            ret[@"authorizationStatus"] = @"Provisional";
+                        }
+                    }
+                    
+                    [self isRegisterForRemoteNotification:^(BOOL result) {
+                        ret[@"isRegisterForRemoteNotification"] = @(result);
+                    }];
 
-                if (completeBlock) {
-                    completeBlock(ret);
+                    if (completeBlock) {
+                        completeBlock(ret);
+                    }
+                } @catch (NSException *exception) {
+                    [self handlePluginExceptionWithoutContext:exception];
                 }
-            } @catch (NSException *exception) {
-                [self handlePluginExceptionWithoutContext:exception];
-            }
-        }];
-    } @catch (NSException *exception) {
-        [self handlePluginExceptionWithoutContext:exception];
+            }];
+        } @catch (NSException *exception) {
+            [self handlePluginExceptionWithoutContext:exception];
+        }
+    } else {
+        [self _logError:@"Unsupported. Minimum supported version requirement not met iOS 10"];
+        completeBlock(@{ @"isSupported" : @((bool)false) });
     }
 }
 
 - (void)grantPermission:(CDVInvokedUrlCommand *)command {
-    if (![self hasSupportedVersion]) {
-        return;
-    }
+    if (@available(iOS 10.0, *)) {
+        @try {
+            UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert|UNAuthorizationOptionSound|UNAuthorizationOptionBadge;
 
-    @try {
-        UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert|UNAuthorizationOptionSound|UNAuthorizationOptionBadge;
-
-        [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:authOptions completionHandler:^(BOOL granted, NSError * _Nullable error) {
-            @try {
-                [self _logMessage:[NSString stringWithFormat:@"requestAuthorizationWithOptions: granted=%@", granted ? @"YES" : @"NO"]];
-                CDVPluginResult* pluginResult;
-                if (error == nil) {
-                    if(granted){
-                        [self registerForRemoteNotification];
+            [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:authOptions completionHandler:^(BOOL granted, NSError * _Nullable error) {
+                @try {
+                    [self _logMessage:[NSString stringWithFormat:@"requestAuthorizationWithOptions: granted=%@", granted ? @"YES" : @"NO"]];
+                    CDVPluginResult* pluginResult;
+                    if (error == nil) {
+                        if(granted){
+                            [self registerForRemoteNotification];
+                        }
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:granted];
+                    }else{
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
                     }
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:granted];
-                }else{
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
+                    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+                } @catch (NSException *exception) {
+                    [self handlePluginExceptionWithContext:exception :command];
                 }
-                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-            } @catch (NSException *exception) {
-                [self handlePluginExceptionWithContext:exception :command];
-            }
-        }];
-    } @catch (NSException *exception) {
-        [self handlePluginExceptionWithContext:exception :command];
+            }];
+        } @catch (NSException *exception) {
+            [self handlePluginExceptionWithContext:exception :command];
+        }
+    } else {
+        [self _logError:@"Unsupported. Minimum supported version requirement not met iOS 10"];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:false];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }
 }
 
@@ -285,15 +290,6 @@ static FirebasePlugin *firebasePlugin;
 
 - (void) handlePluginExceptionWithoutContext: (NSException*) exception {
     [self _logError:[NSString stringWithFormat:@"EXCEPTION: %@", exception.reason]];
-}
-
-- (BOOL) hasSupportedVersion {
-    if (@available(iOS 10.0, *)) {
-        return YES;
-    } else {
-        [self _logError:@"Unsupported. Minimum supported version requirement not met iOS 10"];
-        return NO;
-    }
 }
 
 - (void) executeGlobalJavascript: (NSString*)jsString
