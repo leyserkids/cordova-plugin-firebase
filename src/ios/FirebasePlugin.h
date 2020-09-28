@@ -19,6 +19,7 @@
 - (void)onTokenRefresh:(CDVInvokedUrlCommand*)command;
 - (void)sendNotification:(NSDictionary*)userInfo;
 - (void)sendToken:(NSString*)token;
+- (void)getAPNSToken:(CDVInvokedUrlCommand*)command;
 //- (void)logEvent:(CDVInvokedUrlCommand*)command;
 //- (void)logError:(CDVInvokedUrlCommand*)command;
 //- (void)setCrashlyticsUserId:(CDVInvokedUrlCommand*)command;

@@ -28,6 +28,7 @@ static FirebasePlugin *firebasePlugin;
 
 - (void) getInstanceId:(CDVInvokedUrlCommand *)command {
     @try {
+        [self registerForRemoteNotification];
         [[FIRInstanceID instanceID] instanceIDWithHandler:^(FIRInstanceIDResult * _Nullable result, NSError * _Nullable error) {
             if (error == nil && result.token != nil) {
                 [self sendPluginSuccessWithMessage:result.token command:command];
@@ -177,6 +178,9 @@ static FirebasePlugin *firebasePlugin;
 
 - (void)unregister:(CDVInvokedUrlCommand *)command {
     @try {
+        [self runOnMainThread:^{
+            [[UIApplication sharedApplication] unregisterForRemoteNotifications];
+        }];
         [[FIRInstanceID instanceID] deleteIDWithHandler:^void(NSError *_Nullable error) {
             if (error) {
                 [self sendPluginErrorWithError:error command:command];
@@ -245,6 +249,40 @@ static FirebasePlugin *firebasePlugin;
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
+}
+
+- (void)getAPNSToken:(CDVInvokedUrlCommand *)command {
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[self getAPNSToken]];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (NSString *)getAPNSToken {
+    NSString* hexToken = nil;
+    NSData* apnsToken = [FIRMessaging messaging].APNSToken;
+    if (apnsToken) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000
+        // [deviceToken description] Starting with iOS 13 device token is like "{length = 32, bytes = 0xd3d997af 967d1f43 b405374a 13394d2f ... 28f10282 14af515f }"
+        hexToken = [self hexadecimalStringFromData:apnsToken];
+#else
+        hexToken = [[apnsToken.description componentsSeparatedByCharactersInSet:[[NSCharacterSet alphanumericCharacterSet]invertedSet]]componentsJoinedByString:@""];
+#endif
+    }
+    return hexToken;
+}
+
+- (NSString *)hexadecimalStringFromData:(NSData *)data
+{
+    NSUInteger dataLength = data.length;
+    if (dataLength == 0) {
+        return nil;
+    }
+
+    const unsigned char *dataBuffer = data.bytes;
+    NSMutableString *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
+    for (int i = 0; i < dataLength; ++i) {
+        [hexString appendFormat:@"%02x", dataBuffer[i]];
+    }
+    return [hexString copy];
 }
 
 #pragma mark - utils
