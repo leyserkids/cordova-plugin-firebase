@@ -29,9 +29,9 @@ static FirebasePlugin *firebasePlugin;
 - (void) getInstanceId:(CDVInvokedUrlCommand *)command {
     @try {
         [self registerForRemoteNotification];
-        [[FIRInstanceID instanceID] instanceIDWithHandler:^(FIRInstanceIDResult * _Nullable result, NSError * _Nullable error) {
-            if (error == nil && result.token != nil) {
-                [self sendPluginSuccessWithMessage:result.token command:command];
+        [[FIRMessaging messaging] tokenWithCompletion:^(NSString * _Nullable token, NSError * _Nullable error) {
+            if (error == nil && token != nil) {
+                [self sendPluginSuccessWithMessage:token command:command];
             } else {
                 [self sendPluginErrorWithError:error command:command];
             }
@@ -181,7 +181,7 @@ static FirebasePlugin *firebasePlugin;
         [self runOnMainThread:^{
             [[UIApplication sharedApplication] unregisterForRemoteNotifications];
         }];
-        [[FIRInstanceID instanceID] deleteIDWithHandler:^void(NSError *_Nullable error) {
+        [[FIRMessaging messaging] deleteDataWithCompletion:^(NSError * _Nullable error) {
             if (error) {
                 [self sendPluginErrorWithError:error command:command];
             } else {
