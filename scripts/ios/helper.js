@@ -29,54 +29,53 @@ module.exports = {
      * tool with the API and Secret keys. This tool is used to upload the debug symbols
      * (dSYMs) so that Crashlytics can display stack trace information in it's web console.
      */
-  addShellScriptBuildPhase: function (context, xcodeProjectPath) {
-    var xcode = context.requireCordovaModule("xcode");
+    addShellScriptBuildPhase: function (context, xcodeProjectPath) {
+      var xcode = context.requireCordovaModule("xcode");
+      // Read and parse the XCode project (.pxbproj) from disk.
+      // File format information: http://www.monobjc.net/xcode-project-file-format.html
+      var xcodeProject = xcode.project(xcodeProjectPath);
+      xcodeProject.parseSync();
 
-    // Read and parse the XCode project (.pxbproj) from disk.
-    // File format information: http://www.monobjc.net/xcode-project-file-format.html
-    var xcodeProject = xcode.project(xcodeProjectPath);
-    xcodeProject.parseSync();
+      // Build the body of the script to be executed during the build phase.
+      var script = '"' + '\\"${PODS_ROOT}/FirebaseCrashlytics/run\\"' + '"';
 
-    // Build the body of the script to be executed during the build phase.
-    var script = '"' + '\\"${SRCROOT}\\"' + "/\\\"" + utilities.getAppName(context) + "\\\"/Plugins/" + utilities.getPluginId() + "/Fabric.framework/run" + '"';
-
-    // Generate a unique ID for our new build phase.
-    var id = xcodeProject.generateUuid();
-    // Create the build phase.
-    xcodeProject.hash.project.objects.PBXShellScriptBuildPhase[id] = {
+      // Generate a unique ID for our new build phase.
+      var id = xcodeProject.generateUuid();
+      // Create the build phase.
+      xcodeProject.hash.project.objects.PBXShellScriptBuildPhase[id] = {
           isa: "PBXShellScriptBuildPhase",
           buildActionMask: 2147483647,
           files: [],
-          inputPaths: [],
+          inputPaths: ['"' + '$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)' + '"'],
           name: comment,
           outputPaths: [],
           runOnlyForDeploymentPostprocessing: 0,
           shellPath: "/bin/sh",
           shellScript: script,
           showEnvVarsInLog: 0
-        };
+      };
 
-    // Add a comment to the block (viewable in the source of the pbxproj file).
-    xcodeProject.hash.project.objects.PBXShellScriptBuildPhase[id + "_comment"] = comment;
+      // Add a comment to the block (viewable in the source of the pbxproj file).
+      xcodeProject.hash.project.objects.PBXShellScriptBuildPhase[id + "_comment"] = comment;
 
-    // Add this new shell script build phase block to the targets.
-    for (var nativeTargetId in xcodeProject.hash.project.objects.PBXNativeTarget) {
+      // Add this new shell script build phase block to the targets.
+      for (var nativeTargetId in xcodeProject.hash.project.objects.PBXNativeTarget) {
 
-      // Skip over the comment blocks.
-      if (nativeTargetId.indexOf("_comment") !== -1) {
-        continue;
+          // Skip over the comment blocks.
+          if (nativeTargetId.indexOf("_comment") !== -1) {
+              continue;
+          }
+
+          var nativeTarget = xcodeProject.hash.project.objects.PBXNativeTarget[nativeTargetId];
+
+          nativeTarget.buildPhases.push({
+              value: id,
+              comment: comment
+          });
       }
 
-      var nativeTarget = xcodeProject.hash.project.objects.PBXNativeTarget[nativeTargetId];
-
-      nativeTarget.buildPhases.push({
-        value: id,
-        comment: comment
-      });
-    }
-
-    // Finally, write the .pbxproj back out to disk.
-    fs.writeFileSync(xcodeProjectPath, xcodeProject.writeSync());
+      // Finally, write the .pbxproj back out to disk.
+      fs.writeFileSync(path.resolve(xcodeProjectPath), xcodeProject.writeSync());
   },
 
   /**
@@ -139,5 +138,45 @@ module.exports = {
 
     // Finally, write the .pbxproj back out to disk.
     fs.writeFileSync(xcodeProjectPath, xcodeProject.writeSync());
-  }
+  },
+
+  ensureRunpathSearchPath: function(context, xcodeProjectPath) {
+
+    function addRunpathSearchBuildProperty(proj, build) {
+        let LD_RUNPATH_SEARCH_PATHS = proj.getBuildProperty("LD_RUNPATH_SEARCH_PATHS", build);
+
+        if (!Array.isArray(LD_RUNPATH_SEARCH_PATHS)) {
+            LD_RUNPATH_SEARCH_PATHS = [LD_RUNPATH_SEARCH_PATHS];
+        }
+
+        LD_RUNPATH_SEARCH_PATHS.forEach(LD_RUNPATH_SEARCH_PATH => {
+            if (!LD_RUNPATH_SEARCH_PATH) {
+                proj.addBuildProperty("LD_RUNPATH_SEARCH_PATHS", "\"$(inherited) @executable_path/Frameworks\"", build);
+            }
+            if (LD_RUNPATH_SEARCH_PATH.indexOf("@executable_path/Frameworks") == -1) {
+                var newValue = LD_RUNPATH_SEARCH_PATH.substr(0, LD_RUNPATH_SEARCH_PATH.length - 1);
+                newValue += ' @executable_path/Frameworks\"';
+                proj.updateBuildProperty("LD_RUNPATH_SEARCH_PATHS", newValue, build);
+            }
+            if (LD_RUNPATH_SEARCH_PATH.indexOf("$(inherited)") == -1) {
+                var newValue = LD_RUNPATH_SEARCH_PATH.substr(0, LD_RUNPATH_SEARCH_PATH.length - 1);
+                newValue += ' $(inherited)\"';
+                proj.updateBuildProperty("LD_RUNPATH_SEARCH_PATHS", newValue, build);
+            }
+        });
+    }
+
+    var xcode = context.requireCordovaModule("xcode");
+    // Read and parse the XCode project (.pxbproj) from disk.
+    // File format information: http://www.monobjc.net/xcode-project-file-format.html
+    var xcodeProject = xcode.project(xcodeProjectPath);
+    xcodeProject.parseSync();
+
+    // Add search paths build property
+    addRunpathSearchBuildProperty(xcodeProject, "Debug");
+    addRunpathSearchBuildProperty(xcodeProject, "Release");
+
+    // Finally, write the .pbxproj back out to disk.
+    fs.writeFileSync(path.resolve(xcodeProjectPath), xcodeProject.writeSync());
+  },
 };
